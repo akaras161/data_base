@@ -14,6 +14,12 @@ class Guest:
     def __del__(self):
         print('Obiekt został usunięty')
 
+    def reset_values(self, new_name: str = 'Guest', new_role: str = 'guest', new_counter: int = 0) -> None:
+        self.name = new_name
+        self.role = new_role
+        self.counter = new_counter
+        print('Wyzerowano wartości. Zalogowany jako: ' + self.name)
+
     def show_menu(self):
         print('1. Wyszukaj produkt')
         print('2. Zaloguj')
@@ -84,77 +90,71 @@ def create_object(nick, role, counter):
 
 def register():
     print("Rejestracja")
-    new_login = input("Login: ")
-    new_password = input("Haslo: ")
     new_email = input("Email: ")
-    new_nick = input("Nazwa w systemie: ")
+    new_password = input("Haslo: ")
+    new_name = input("Nazwa w systemie: ")
+    new_age = input("Wiek: ")
 
-    mycursor.execute("SELECT login, haslo, email, nazwa_w_systemie from uzytkownicy")
-    myresult = mycursor.fetchall()
-
-    is_there_any = False
-
-    for login, password, email, nick in myresult:
-        if login == new_login:
-            print("Użytkownik o podanym loginie już istnieje!")
-            is_there_any = True
-            register()
-        elif email == new_email:
-            print("Uzytkownik o podanym email już istnieje!")
-            is_there_any = True
-            register()
-        elif nick == new_nick:
-            print("Nazwa użytkownika jest zajęta!")
-            is_there_any = True
-            register()
-    if not is_there_any:
-        sql_command = "INSERT INTO uzytkownicy (login, haslo, nazwa_w_systemie, email) VALUES (%s, %s, %s, %s)"
-        values_to_insert = (new_login, new_password, new_nick, new_email)
-        mycursor.execute(sql_command, values_to_insert)
-        mydb.commit()
-        main_menu()
-
-
-# def del_acc(current_user):
-#     sql_command = "UPDATE uzytkownicy SET login = '', email = '', haslo = '' WHERE nazwa_w_systemie = " + current_user.name
-#     mycursor.execute(sql_command)
-#     mydb.commit()
-#     main_menu()
-
-
-def log_in():
-    username = input("Nazwa użuytkownika: ")
-    password = input("Hasło: ")
-
-    sql_command = "SELECT login, haslo, nazwa_w_systemie, rola, licznik FROM uzytkownicy WHERE login ='%s'" % username
+    sql_command = "SELECT email, nazwa_uzytkownika, haslo, ranga, licznik FROM uzytkownicy WHERE email ='%s' OR nazwa_uzytkownika ='%s'" %(new_email, new_name)
     mycursor.execute(sql_command)
     myresult = mycursor.fetchall()
 
-    if username == myresult[0][0] and password == myresult[0][1]:
-        print('Zalogowano pomyślnie!')
+    if myresult:
+        # Jeżeli taki email juz znajduje się w bazie
+        if myresult[0][0] == new_email:
+            print("Uzytkownik o podanym email już istnieje!")
+        else:
+            print("Użytkownik o podanym loginie już istnieje!")
+        print('1. Spróbuj ponownie')
+        print('2. Powrót do menu')
+        choice = input(":")
+        if choice == '1':
+            register()
+        elif choice == '2':
+            main_menu(guest)
+    else:
+        # Jeżeli taki email nie znajduje się w bazie
+        sql_command = "INSERT INTO uzytkownicy (email, haslo, nazwa_uzytkownika, wiek) VALUES (%s, %s, %s, %s)"
+        values_to_insert = (new_email, new_password, new_name, new_age)
+        mycursor.execute(sql_command, values_to_insert)
+        mydb.commit()
+        main_menu(guest)
+
+
+def del_acc(current_user):
+    sql_command = "DELETE FROM  uzytkownicy WHERE nazwa_uzytkownika ='%s'" % current_user.name
+    mycursor.execute(sql_command)
+    mydb.commit()
+    main_menu(guest)
+
+
+def log_in():
+    input_email = input("Email: ")
+    password = input("Hasło: ")
+
+    sql_command = "SELECT email, haslo, nazwa_uzytkownika, ranga, licznik FROM uzytkownicy WHERE email ='%s'" % input_email
+    mycursor.execute(sql_command)
+    myresult = mycursor.fetchall()
+
+    if myresult and input_email == myresult[0][0] and password == myresult[0][1]:
         current_user = create_object(myresult[0][2], myresult[0][3], myresult[0][4])
+        print('Zalogowano pomyślnie!')
         main_menu(current_user)
     else:
-        print('Błędny login lub hasło!')
+        print('Błędny email lub hasło!')
         print('1. Spróbuj ponownie')
         print('2. Powrót do menu')
         choice = input(":")
         if choice == '1':
             log_in()
         elif choice == '2':
-            main_menu()
+            main_menu(guest)
 
 
 def log_out(current_user):
+    current_user.reset_values()
     del current_user
-    main_menu()
-
-
-def guest_menu():
-    print('1. Wyszukaj produkt')
-    print('2. Zaloguj')
-    print('3. Załóż konto')
-    print('4. Exit')
+    main_menu(guest)
 
 
 def acc_management_menu(current_user):
@@ -169,67 +169,100 @@ def acc_management_menu(current_user):
         print("2. NIE")
         choice = input(":")
         if choice == '1':
-            pass
-            #del_acc(current_user)
+            # Delete acc
+            del_acc(current_user)
         elif choice == '2':
+            # Back to menu
             acc_management_menu(current_user)
     elif choice == '2':
         main_menu(current_user)
 
 
-def main_menu(current_user: Guest = Guest) -> None:
+def check_existing_users(current_user):
+    sql_command = "SELECT nazwa_w_systemie FROM uzytkownicy"
+    mycursor.execute(sql_command)
+    myresult = mycursor.fetchall()
+
+    print('Istniejący użytkownicy w systemie:')
+
+    tmp_counter = 0
+
+    for nick in myresult:
+        print(str(nick))
+        tmp_counter += 1
+        if tmp_counter == 10:
+            tmp_counter = 0
+            print('---------------------')
+            print('1. Wyświetl kolejnych 10')
+            print('2. Powrót')
+            choice = input(":")
+            if choice == '1':
+                pass
+            elif choice == '2':
+                main_menu(current_user)
+    main_menu(current_user)
+
+#AKTUALNIE PRACUJE NAD
+def search_product():
+    print('Wyszukaj produkt: ')
+    print('1. Nazwa')
+    print('2. Gatunek')
+    print('3. Voltaż')
+    print('1. Nazwa')
+
+
+def main_menu(current_user):
     clear_view()
     print('MENU \n')
 
-    if current_user.role == 'guest':
-        guest_menu()
-    elif current_user.role == 'unverified':
-        current_user.show_menu()
-    elif current_user.role == 'verified':
-        current_user.show_menu()
-    elif current_user.role == 'admin':
-        current_user.show_menu()
+    current_user.show_menu()
 
     choice = input(":")
 
     if current_user.role == 'guest':
         if choice == '1':
             pass
-            #search product
+            # Search product
         elif choice == '2':
+            # Log in
             log_in()
         elif choice == '3':
+            # Register
             register()
-            #register
         elif choice == '4':
+            # End program
             exit()
     elif current_user.role == 'unverified' or current_user.role == 'verified':
         if choice == '1':
+            # Search product
             pass
-            #search product
         elif choice == '2':
+            # Account manage
             acc_management_menu(current_user)
-            #account manage
         elif choice == '3':
+            # Log out
             log_out(current_user)
         elif choice == '4':
+            # End program
             exit()
     elif current_user.role == 'admin':
         if choice == '1':
-            pass
-            #data base management
+            # Data base management
+            check_existing_users(current_user)
         elif choice == '2':
+            # Account management
             acc_management_menu(current_user)
-            #account management
         elif choice == '3':
+            # Opinion queue
             pass
-            #opinion queue
         elif choice == '4':
+            # New product queue
             pass
-            #new product queue
         elif choice == '5':
+            # Log out
             log_out(current_user)
         elif choice == '6':
+            # End program
             exit()
 
 
@@ -238,8 +271,8 @@ if __name__ == '__main__':
         host="localhost",
         user="root",
         password="akaras171",
-        database="system_logowania"
+        database="wyroby_slodowe_projekt"
     )
     mycursor = mydb.cursor()
-
-    main_menu()
+    guest = Guest()
+    main_menu(guest)
