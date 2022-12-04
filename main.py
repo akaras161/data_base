@@ -95,7 +95,9 @@ def register():
     new_name = input("Nazwa w systemie: ")
     new_age = input("Wiek: ")
 
-    sql_command = "SELECT email, nazwa_uzytkownika, haslo, ranga, licznik FROM uzytkownicy WHERE email ='%s' OR nazwa_uzytkownika ='%s'" %(new_email, new_name)
+    sql_command = "SELECT email, nazwa_uzytkownika, haslo, ranga, licznik " \
+                  "FROM uzytkownicy " \
+                  "WHERE email ='%s' OR nazwa_uzytkownika ='%s'" % (new_email, new_name)
     mycursor.execute(sql_command)
     myresult = mycursor.fetchall()
 
@@ -132,7 +134,9 @@ def log_in():
     input_email = input("Email: ")
     password = input("Hasło: ")
 
-    sql_command = "SELECT email, haslo, nazwa_uzytkownika, ranga, licznik FROM uzytkownicy WHERE email ='%s'" % input_email
+    sql_command = "SELECT email, haslo, nazwa_uzytkownika, ranga, licznik " \
+                  "FROM uzytkownicy " \
+                  "WHERE email ='%s'" % input_email
     mycursor.execute(sql_command)
     myresult = mycursor.fetchall()
 
@@ -202,13 +206,119 @@ def check_existing_users(current_user):
                 main_menu(current_user)
     main_menu(current_user)
 
-#AKTUALNIE PRACUJE NAD
-def search_product():
+
+def show_product(sql_command, current_id):
+    mycursor.execute(sql_command)
+    myresult = mycursor.fetchall()
+
+    size = 42
+    for i in range(current_id, current_id+3):
+        if i < len(myresult):
+            print('\n+', '-' * size, '+')
+            str = '%s %s |' % (myresult[i][1], myresult[i][0])
+            str = str.upper()
+            print("| %44s" % str)
+            print('+', '-' * size, '+')
+            print("| %20s: %20s |" % ("Marka", myresult[i][1]))
+            print("| %20s: %20s |" % ("Nazwa", myresult[i][0]))
+            print("| %20s: %20s |" % ("Średnia ocen", myresult[i][5]))
+            print("| %20s: %20s |" % ("Wyprodukowano w", myresult[i][11]))
+            print("| %20s: %20s |" % ("Voltaż", myresult[i][3]))
+            print("| %20s: %20s |" % ("Goryczka", myresult[i][4]))
+            print("| %20s: %20s |" % ("Opakowanie", myresult[i][6]))
+            print("| %20s: %20s |" % ("Rodzaj fermentacji", myresult[i][7]))
+            print("| %20s: %20s |" % ("Chmielowość", myresult[i][8]))
+            print("| %20s: %20s |" % ("Piana", myresult[i][9]))
+            print("| %20s: %20s |" % ("Nasycenie CO2", myresult[i][10]))
+            print('+', '-' * size, '+')
+        elif i + 1 == len(myresult) or i == len(myresult):
+            return False
+        else:
+            return False
+    return True
+
+
+def search_by_parameter(current_user, parameter, parameter_value, current_id=0):
+    sql_command = "SELECT * FROM piwa WHERE %s='%s'" % (parameter, parameter_value)
+
+    if show_product(sql_command, current_id):
+        current_id += 3
+        if current_id > 3:
+            print('1. Wyświetl kolejne')
+            print('2. Wyświetl poprzednie')
+            print('3. Wyszukaj ponownie')
+            print('4. Menu główne')
+            choice = input(':')
+            if choice == '1':
+                search_by_parameter(current_user, parameter, parameter_value, current_id)
+            elif choice == '2':
+                search_by_parameter(current_user, parameter, parameter_value, current_id - 3)
+            elif choice == '3':
+                search_product_menu(current_user)
+            elif choice == '4':
+                main_menu(current_user)
+        else:
+            print('1. Wyświetl kolejne')
+            print('2. Wyszukaj ponownie')
+            print('3. Menu główne')
+            choice = input(':')
+            if choice == '1':
+                search_by_parameter(current_user, parameter, parameter_value, current_id+3)
+            elif choice == '2':
+                search_product_menu(current_user)
+            elif choice == '3':
+                main_menu(current_user)
+    else:
+        if current_id == 0:
+            print('1. Wyszukaj ponownie')
+            print('2. Menu główne')
+            choice = input(':')
+            if choice == '1':
+                search_product_menu(current_user)
+            elif choice == '2':
+                main_menu(current_user)
+        else:
+            print('1. Wyświetl poprzednie')
+            print('2. Wyszukaj ponownie')
+            print('3. Menu główne')
+            choice = input(':')
+            if choice == '1':
+                search_by_parameter(current_user, parameter, parameter_value, current_id - 3)
+            elif choice == '2':
+                search_product_menu(current_user)
+            elif choice == '3':
+                main_menu(current_user)
+
+    print('Zakonczono wyszukiwanie')
+    search_product_menu(current_user)
+
+
+def search_product_menu(current_user):
     print('Wyszukaj produkt: ')
     print('1. Nazwa')
-    print('2. Gatunek')
-    print('3. Voltaż')
-    print('1. Nazwa')
+    print('2. Marka')
+    print('3. Gatunek')
+    print('4. Voltaż')
+    print('5. Skład')
+    print('6. Menu główne')
+
+    choice = input(':')
+
+    if choice == '1':
+        type = input('Nazwa szukanego produktu: ')
+        search_by_parameter(current_user, "nazwa_piwa", type)
+        # Search by product name
+    elif choice == '2':
+        type = input('Marka szukanego produktu: ')
+        search_by_parameter(current_user, "marka", type)
+    elif choice == '3':
+        pass
+    elif choice == '4':
+        pass
+    elif choice == '5':
+        pass
+    elif choice == '6':
+        main_menu(current_user)
 
 
 def main_menu(current_user):
@@ -222,6 +332,7 @@ def main_menu(current_user):
     if current_user.role == 'guest':
         if choice == '1':
             pass
+            search_product_menu(current_user)
             # Search product
         elif choice == '2':
             # Log in
@@ -236,6 +347,7 @@ def main_menu(current_user):
         if choice == '1':
             # Search product
             pass
+            search_product_menu(current_user)
         elif choice == '2':
             # Account manage
             acc_management_menu(current_user)
